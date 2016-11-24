@@ -77,7 +77,7 @@
                   (pile (car state)))
                 (if (>= (length pile) 2)
                     (let*((depiled (cdr (cdr pile)))
-                          (arg1 (list->number (car (cdr pile))))
+                          (arg1 (list->number (cadr pile)))
                           (arg2 (list->number (car pile)))
                           (result (number->list (func arg1 arg2))))
                         (cons
@@ -95,7 +95,7 @@
 (define process-set
     (lambda (state token)
         (if (and (eq? (length token) 2)
-                (varname? (car (cdr token))))
+                (varname? (cadr token)))
         (if (>= (length (car state)) 1)
             (let*((pile (car state))
                   (dict (cdr state))
@@ -126,7 +126,7 @@
                         #f
                         dict)))
                     (if pair
-                        (cons (cons (car (cdr pair)) pile) dict)
+                        (cons (cons (cadr pair) pile) dict)
                         (raise (string-append
                             "Variable \""
                             (list->string token)
