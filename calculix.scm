@@ -26,155 +26,137 @@
 
 (define every
     (lambda (f lst)
-        (not (find (lambda (e) (not (f e))) #f lst)))) ;; existe-t'il un element autre que f dans la liste ?
+        (not (find (lambda (e) (not (f e))) #f lst))))
 
-(define list->number (lambda (lst) (string->number (list->string lst)))) ;; char. list to number
+(define find-cont
+    (lambda (f lst cont fail)
+        (if (null? lst)
+            (fail)
+            (if (f (car lst))
+                (cont (car lst))
+                (find-cont f (cdr lst) cont fail)))))
 
-(define number->list (lambda (num) (string->list (number->string num)))) ;; number to char list
+(define list->number (lambda (lst) (string->number (list->string lst))))
+(define number->list (lambda (num) (string->list (number->string num))))
 
 (define digit? (lambda (c) (and (char>=? c #\0) (char<=? c #\9))))
-
-(define number? (lambda (n) (every digit? n)))
-
 (define non-0-digit? (lambda (c) (and (digit? c) (not (eq? c #\0)))))
+(define char? (lambda (c) (and (char>=? c #\a) (char<=? c #\z))))
+(define char-or-digit? (lambda (c) (or (char? c) (digit? c))))
+
+(define number? (lambda (n) (and
+    (non-0-digit? (car n))
+    (every digit? (cdr n)))))
 
 (define operator?
-    (lambda (c) (case c
-        ((#\+ #\- #\/ #\* #\^) #t)
-        (else #f))))
+    (lambda (n) (and
+        (null? (cdr n))
+        (case (car n) ((#\+ #\- #\/ #\* #\^) #t) (else #f)))))
 
-(define varassignation? (lambda (c) (eq? c #\=)))
+(define varassignation? (lambda (n) (and
+    (eq? (car n) #\=)
+    (varname? (cdr n)))))
 
-(define varname? (lambda (c) (and (char>=? c #\a) (char<=? c #\z))))
+(define varname? (lambda (n) (and
+    (char? (car n))
+    (every char-or-digit? (cdr n)))))
 
 (define tokenize
     (lambda (expr)
-        (map (lambda (token) (reverse token))
-            (reverse
-                (foldl
-                    (lambda (tokens c)
-                        (let ((current (car tokens)) (others (cdr tokens)))
-                            (if (char-whitespace? c)
-                                (if (null? current)
-                                    tokens ;; char whitespace, current null
-                                    (cons '() tokens)) ;; char whitespace, current non-null
-                                (cons (cons c current) others))));; char not whitespace
-                    (list '()) ;; base
-                    expr))))) ;; lst of tokens
+        (let ((reversed
+            (foldl
+                (lambda (tokens c)
+                    (let ((current (car tokens)) (others (cdr tokens)))
+                        (if (char-whitespace? c)
+                            (if (null? current)
+                                tokens
+                                (cons '() tokens))
+                            (cons (cons c current) others))))
+                (list '())
+                expr)))
+            (map reverse (reverse reversed)))))
 
 (define process-number
-    (lambda (state token)
-        (if (number? token)
-            (cons (cons token (car state)) (cdr state))
-            (raise (string-append
-                "Invalid number \""
-                (list->string token)
-                "\"")))))
+    (lambda (state token) (cons (cons token (car state)) (cdr state))))
 
 (define process-operator
     (lambda (state token)
-        (if (eq? (length token) 1)
-            (let ((func (case (car token)
-                        ((#\+) +) ((#\-) -) ((#\*) *)
-                        (else (raise (string-append
-                            "Operation \""
-                            (list->string token)
-                            "\" not supported")))))
-                  (pile (car state)))
-                (if (>= (length pile) 2)
-                    (let*((depiled (cdr (cdr pile)))
-                          (arg1 (list->number (cadr pile)))
-                          (arg2 (list->number (car pile)))
-                          (result (number->list (func arg1 arg2))))
-                        (cons
-                            (cons result depiled)
-                            (cdr state)))
-                    (raise (string-append
-                        "Not enough arguments for \""
-                        (list->string token)
-                        "\" (need 2)"))))
-            (raise (string-append
-                "Invalid operation \""
-                (list->string token)
-                "\"")))))
+        (let ((func (case (car token)
+                ((#\+) +) ((#\-) -) ((#\*) *)
+                (else (raise (string-append
+                    "Operation \""
+                    (list->string token)
+                    "\" not supported")))))
+              (pile (car state)))
+            (if (>= (length pile) 2)
+                (let*((depiled (cddr pile))
+                      (arg1 (list->number (cadr pile)))
+                      (arg2 (list->number (car pile)))
+                      (result (number->list (func arg1 arg2))))
+                    (cons
+                        (cons result depiled)
+                        (cdr state)))
+                (raise (string-append
+                    "Not enough arguments for \""
+                    (list->string token)
+                    "\" (need 2)"))))))
 
 (define process-set
     (lambda (state token)
-        (if (and (eq? (length token) 2)
-                (varname? (cadr token)))
         (if (>= (length (car state)) 1)
             (let*((pile (car state))
                   (dict (cdr state))
                   (varname (cdr token))
-                  (arg (car pile))
-                  (newdict (foldl
+                  (arg (car pile)))
+                (cons pile (foldl
                     (lambda (newdict pair)
                         (if (and (not (null? pair)) (lst-eq? (car pair) varname))
                             newdict
                             (cons pair newdict))) ;; f
                     (list (list varname arg));; base
-                    dict)));; lst
-                (cons pile newdict))
+                    dict)))
             (raise (string-append
-                "Not enough arguments for assignation (need 1)")))
-            (raise (string-append
-                "Invalid variable name \""
-                (list->string (cdr token))
-                "\"")))))
+                "Not enough arguments for assignation (need 1)")))))
 
 (define process-ref
     (lambda (state token)
-        (if (eq? (length token) 1)
-            (let ((pile (car state))
-                  (dict (cdr state)))
-                (let ((pair (find
-                        (lambda (pair) (lst-eq? (car pair) token)) ;; comparison fct
-                        #f ;; default
-                        dict))) ;; lst
-                    (if pair
-                        (cons (cons (cadr pair) pile) dict)
-                        (raise (string-append
-                            "Variable \""
-                            (list->string token)
-                            "\" not bound")))))
-        (raise (string-append
-            "Invalid variable name \""
-            (list->string token)
-            "\"")))))
+        (let ((pile (car state)) (dict (cdr state)))
+            (find-cont
+                (lambda (pair) (lst-eq? (car pair) token))
+                dict
+                (lambda (pair) (cons (cons (cadr pair) pile) dict))
+                (lambda () (raise (string-append
+                    "Variable \""
+                    (list->string token)
+                    "\" not bound")))))))
+
+(define processors (list
+    (list number? process-number)
+    (list operator? process-operator)
+    (list varassignation? process-set)
+    (list varname? process-ref)))
 
 (define process-token
-    (lambda (state token)
-        (let ((top (car token))) ;; token: (char, ...).... liste contenant chacun des symboles d'un mot ??
-            (cond
-                ((non-0-digit? top) (process-number state token))
-                ((operator? top) (process-operator state token))
-                ((varassignation? top) (process-set state token))
-                ((varname? top) (process-ref state token))
-                (else (raise (string-append
-                    "Unknown token \""
-                    (list->string token)
-                    "\"")))))))
-
-(define processors (
-    list 
-    '(non-0-digit? . process-number) 
-    '(operator? . process-operator) 
-    '(varassignation? . process-set) 
-    '(varname? process-ref)
-))
+    (lambda (state token) (find-cont
+        (lambda (pair) ((car pair) token))
+        processors
+        (lambda (processor) ((cadr processor) state token))
+        (lambda () (raise
+            (string-append
+                "Unknown token \""
+                (list->string token)
+                "\""))))))
 
 (define traiter
     (lambda (expr dict)
         (if (null? expr)
             (cons '(#\0) dict)
             (with-exception-catcher
-                (lambda (e)
-                    (cons (string->list e) dict)) ;; Procedure si on a une exception (catch)
+                (lambda (e) (cons (string->list e) dict)) ;; Procedure si on a une exception (catch)
                 (lambda () ;; Try:
                     (let ((result
                             (foldl
-                                (lambda (state token)
-                                    (process-token state token)) ;; f
+                                process-token ;; f
                                 (cons '() dict) ;; base
                                 (tokenize expr)))) ;; lst
                         (cons (car (car result)) (cdr result))))))))
