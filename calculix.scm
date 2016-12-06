@@ -108,13 +108,15 @@
                   (dict (cdr state))
                   (varname (cdr token))
                   (arg (car pile)))
-                (cons pile (foldl
+                  
+                  (cons pile (foldl
                     (lambda (newdict pair)
-                        (if (and (not (null? pair)) (lst-eq? (car pair) varname))
+                        (if (and (not (null? pair)) (lst-eq? (car pair) varname));;if la paire est non-nulle et la variable est 
                             newdict
+                            
                             (cons pair newdict))) ;; f
                     (list (list varname arg));; base
-                    dict)))
+                    dict)));; lst
             (raise (string-append
                 "Not enough arguments for assignation (need 1)")))))
 
@@ -138,7 +140,7 @@
 
 (define process-token
     (lambda (state token) (find-cont
-        (lambda (pair) ((car pair) token))
+        (lambda (pair) ((car pair) token));; appliquer la première fonction sur token, la fonction de test
         processors
         (lambda (processor) ((cadr processor) state token))
         (lambda () (raise
@@ -158,8 +160,13 @@
                             (foldl
                                 process-token ;; f
                                 (cons '() dict) ;; base
-                                (tokenize expr)))) ;; lst
-                        (cons (car (car result)) (cdr result))))))))
+                                (tokenize expr)));; lst
+                           )
+                        (if (<= (length (car result)) 1)    
+                            (cons (car (car result)) (cdr result))
+                            (raise "Stack not empty")
+                        )
+                        ))))))
 
 ;;;----------------------------------------------------------------------------
 

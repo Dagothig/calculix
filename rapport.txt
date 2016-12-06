@@ -14,8 +14,9 @@ Rapport
 
 d) Affichage des résultats et des erreurs
     Pour l'affichage des résultats, on se sert de la méthode écrite par le professeur. On a remarqué qu'elle affichait les valeurs attachées en avant du dictionnaire retourné par "traiter". Donc pour afficher les résultats, on dépile simplement le premier nombre de la pile et on l'attache devant le dictionnaire avec "cons". De la même façon, pour afficher le message d'erreur, on l'append devant dict.  
+    
 e) Traitement des erreurs
     Le traitement des erreurs est simple. On applique le principe du try...catch. Notre méthode la plus englobante, traiter, utilise la fonction with-exception-catcher, qui "surveille" le lancer d'exceptions et effectue une fonction si elle attrape une exception. Dans ce cas ci, chaque exception qu'on lance au cours de l'exécution donne un message d'erreur. Dans le catch, on ajoute ce message devant le dictionnaire pour qu'il soit imprimé à la place de la pile. 
     Chaque fois qu'on fait une recherche avec continuation (find-cont), on précise aussi une fonction d'échec au cas où on arrive au bout de la liste sans trouver. Cette fonction lance le message d'erreur approprié au contexte avec "raise".
     On peut aussi avoir droit à des erreurs quand on a besoin de dépiler des nombres, quand vient temps d'effectuer une opération mathématique sur deux nombres ou d'attribuer une valeur à une variable. Dans les fonctions process-operator et process-set, on vérifie donc que la taille de la pile correspond à un certain minimum avant de dépiler. Sinon, on lance une exception de type "not enough arguments". 
-     On lance aussi une opération dans process-operator dans le switch qui cherche l'opération représentée par le token. *********************************************
+     On lance aussi une exception dans Traiter au moment de renvoyer la pile et le dictionnaire. On vérifie si la pile contient plus qu'un élément. Dans ce cas, on a une erreur de syntaxe car on a donné trop d'arguments à l'expression. 
