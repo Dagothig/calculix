@@ -36,6 +36,28 @@
                 (cont (car lst))
                 (find-cont f (cdr lst) cont fail)))))
 
+(define split-at
+    (lambda (f lst cont)
+        (define split-at-with
+            (lambda (head tail)
+                (if (and (not (null? tail))
+                        (f (cons (car tail) head) (cdr tail)))
+                    (split-at-with (cons (car tail) head) (cdr tail))
+                    (cont (reverse head) tail))))
+        (split-at-with '() lst)))
+
+(define depile
+    (lambda (pile num cont fail)
+        (if (>= (length pile) num)
+            (split-at (lambda (args _) (<= (length args) num)) pile cont)
+            (fail))))
+
+(define new-pile (lambda (state pile) (cons pile (cdr state))))
+(define new-dict (lambda (state dict) (cons (car state) dict)))
+
+(define add-to-pile
+    (lambda (state to-add) (new-pile state (cons to-add (car state)))))
+
 (define list->number (lambda (lst) (string->number (list->string lst))))
 (define number->list (lambda (num) (string->list (number->string num))))
 
@@ -53,6 +75,14 @@
         (null? (cdr n))
         (case (car n) ((#\+ #\- #\/ #\* #\^) #t) (else #f)))))
 
+(define operator
+    (lambda (n) (case (car n)
+        ((#\+) +) ((#\-) -) ((#\*) *)
+        (else (raise (string-append
+            "Operation \""
+            (list->string token)
+            "\" not supported"))))))
+
 (define varassignation? (lambda (n) (and
     (eq? (car n) #\=)
     (varname? (cdr n)))))
@@ -63,82 +93,73 @@
 
 (define tokenize
     (lambda (expr)
-        (let ((reversed
-            (foldl
-                (lambda (tokens c)
-                    (let ((current (car tokens)) (others (cdr tokens)))
+        ; Tokenize operates on the expression in a reversed order; it also prepends as it creates the tokens since its a simpler operation.
+        ; Thus, once the expression has been tokenized, it is reversed and its' contents are reversed
+        ; The tokenization is done by prepending every character to the ongoing token and to begin a new token every time whitespace is found
+        (let*((reversed
+                (foldl
+                    (lambda (tokens c)
                         (if (char-whitespace? c)
-                            (if (null? current)
+                            (if (null? (car tokens))
                                 tokens
                                 (cons '() tokens))
-                            (cons (cons c current) others))))
-                (list '())
-                expr)))
-            (map reverse (reverse reversed)))))
-
-(define process-number
-    (lambda (state token) (cons (cons token (car state)) (cdr state))))
+                            (cons (cons c (car tokens)) (cdr tokens))))
+                    (list '())
+                    expr))
+                (cleaned (if (null? (car reversed)) (cdr reversed) reversed)))
+            (map reverse (reverse cleaned)))))
 
 (define process-operator
     (lambda (state token)
-        (let ((func (case (car token)
-                ((#\+) +) ((#\-) -) ((#\*) *)
-                (else (raise (string-append
-                    "Operation \""
-                    (list->string token)
-                    "\" not supported")))))
-              (pile (car state)))
-            (if (>= (length pile) 2)
-                (let*((depiled (cddr pile))
-                      (arg1 (list->number (cadr pile)))
-                      (arg2 (list->number (car pile)))
-                      (result (number->list (func arg1 arg2))))
-                    (cons
-                        (cons result depiled)
-                        (cdr state)))
-                (raise (string-append
+        (depile (car state) 2
+            (lambda (args depiled)
+                (add-to-pile
+                    (new-pile state depiled)
+                    (number->list (apply
+                            (operator token)
+                            (reverse (map list->number args))))))
+            (lambda () (raise
+                (string-append
                     "Not enough arguments for \""
                     (list->string token)
                     "\" (need 2)"))))))
 
 (define process-set
     (lambda (state token)
-        (if (>= (length (car state)) 1)
-            (let*((pile (car state))
-                  (dict (cdr state))
-                  (varname (cdr token))
-                  (arg (car pile)))
-                (cons pile (foldl
-                    (lambda (newdict pair)
-                        (if (and (not (null? pair)) (lst-eq? (car pair) varname))
-                            newdict
-                            (cons pair newdict))) ;; f
-                    (list (list varname arg));; base
-                    dict)))
-            (raise (string-append
-                "Not enough arguments for assignation (need 1)")))))
+        (depile (car state) 1
+            (lambda (args _)
+                (new-dict state
+                    (foldl
+                        (lambda (newdict pair)
+                            (if (lst-eq? (car pair) (cdr token))
+                                newdict
+                                (cons pair newdict)))
+                        (list (list (cdr token) (car args)))
+                        (cdr state))))
+            (lambda () (raise "Not enough arguments for assignation (need 1)"))
+        )))
 
 (define process-ref
     (lambda (state token)
-        (let ((pile (car state)) (dict (cdr state)))
+        (add-to-pile state
             (find-cont
                 (lambda (pair) (lst-eq? (car pair) token))
-                dict
-                (lambda (pair) (cons (cons (cadr pair) pile) dict))
+                (cdr state)
+                (lambda (pair) (cadr pair))
                 (lambda () (raise (string-append
                     "Variable \""
                     (list->string token)
                     "\" not bound")))))))
 
 (define processors (list
-    (list number? process-number)
+    (list number? add-to-pile)
     (list operator? process-operator)
     (list varassignation? process-set)
     (list varname? process-ref)))
 
 (define process-token
     (lambda (state token) (find-cont
-        (lambda (pair) ((car pair) token))
+        (lambda (processor) ((car processor) token))
         processors
         (lambda (processor) ((cadr processor) state token))
         (lambda () (raise
@@ -152,14 +173,13 @@
         (if (null? expr)
             (cons '(#\0) dict)
             (with-exception-catcher
-                (lambda (e) (cons (string->list e) dict)) ;; Procedure si on a une exception (catch)
-                (lambda () ;; Try:
-                    (let ((result
-                            (foldl
-                                process-token ;; f
-                                (cons '() dict) ;; base
-                                (tokenize expr)))) ;; lst
-                        (cons (car (car result)) (cdr result))))))))
+                (lambda (e) (cons (string->list e) dict))
+                (lambda ()
+                    (let ((result (foldl
+                            process-token
+                            (cons '() dict)
+                            (tokenize expr))))
+                        (new-pile result (caar result))))))))
 
 ;;;----------------------------------------------------------------------------
 
