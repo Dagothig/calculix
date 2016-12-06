@@ -155,6 +155,14 @@
                     (list->string token)
                     "\"")))))))
 
+(define processors (
+    list 
+    '(non-0-digit? . process-number) 
+    '(operator? . process-operator) 
+    '(varassignation? . process-set) 
+    '(varname? process-ref)
+))
+
 (define traiter
     (lambda (expr dict)
         (if (null? expr)
