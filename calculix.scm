@@ -103,7 +103,8 @@
                   (arg (car pile))
                   (newdict (foldl
                     (lambda (newdict pair)
-                        (if (and (not (null? pair)) (eq? (car pair) varname))
+                        (if (and (not (null? pair))
+                                (lst-eq? (car pair) varname))
                             newdict
                             (cons pair newdict)))
                     (list (list varname arg))
