@@ -1,0 +1,9 @@
+IFT2035  TP2
+Rapport
+
+a) Analyse syntaxique et traitement d’une expression
+    On enlève les espaces de l'expression et on sépare chaque terme comme un item dans une liste. 
+b) Calcul de l’expression
+c) Affectation aux variables
+d) Affichage des résultats et des erreurs
+e) Traitement des erreurs

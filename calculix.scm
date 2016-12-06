@@ -26,19 +26,25 @@
 
 (define every
     (lambda (f lst)
-        (not (find (lambda (e) (not (f e))) #f lst))))
+        (not (find (lambda (e) (not (f e))) #f lst)))) ;; existe-t'il un element autre que f dans la liste ?
 
-(define list->number (lambda (lst) (string->number (list->string lst))))
-(define number->list (lambda (num) (string->list (number->string num))))
+(define list->number (lambda (lst) (string->number (list->string lst)))) ;; char. list to number
+
+(define number->list (lambda (num) (string->list (number->string num)))) ;; number to char list
 
 (define digit? (lambda (c) (and (char>=? c #\0) (char<=? c #\9))))
+
 (define number? (lambda (n) (every digit? n)))
+
 (define non-0-digit? (lambda (c) (and (digit? c) (not (eq? c #\0)))))
+
 (define operator?
     (lambda (c) (case c
         ((#\+ #\- #\/ #\* #\^) #t)
         (else #f))))
+        
 (define varassignation? (lambda (c) (eq? c #\=)))
+
 (define varname? (lambda (c) (and (char>=? c #\a) (char<=? c #\z))))
 
 (define tokenize
@@ -50,11 +56,11 @@
                         (let ((current (car tokens)) (others (cdr tokens)))
                             (if (char-whitespace? c)
                                 (if (null? current)
-                                    tokens
-                                    (cons '() tokens))
-                                (cons (cons c current) others))))
-                    (list '())
-                    expr)))))
+                                    tokens ;; char whitespace, current null
+                                    (cons '() tokens)) ;; char whitespace, current non-null
+                                (cons (cons c current) others))));; char not whitespace
+                    (list '()) ;; base
+                    expr))))) ;; lst of tokens
 
 (define process-number
     (lambda (state token)
@@ -103,12 +109,11 @@
                   (arg (car pile))
                   (newdict (foldl
                     (lambda (newdict pair)
-                        (if (and (not (null? pair))
-                                (lst-eq? (car pair) varname))
+                        (if (and (not (null? pair)) (lst-eq? (car pair) varname))
                             newdict
-                            (cons pair newdict)))
-                    (list (list varname arg))
-                    dict)))
+                            (cons pair newdict))) ;; f
+                    (list (list varname arg));; base
+                    dict)));; lst
                 (cons pile newdict))
             (raise (string-append
                 "Not enough arguments for assignation (need 1)")))
@@ -123,9 +128,9 @@
             (let ((pile (car state))
                   (dict (cdr state)))
                 (let ((pair (find
-                        (lambda (pair) (lst-eq? (car pair) token))
-                        #f
-                        dict)))
+                        (lambda (pair) (lst-eq? (car pair) token)) ;; comparison fct
+                        #f ;; default
+                        dict))) ;; lst
                     (if pair
                         (cons (cons (cadr pair) pile) dict)
                         (raise (string-append
@@ -139,7 +144,7 @@
 
 (define process-token
     (lambda (state token)
-        (let ((top (car token)))
+        (let ((top (car token))) ;; token: (char, ...).... liste contenant chacun des symboles d'un mot ??
             (cond
                 ((non-0-digit? top) (process-number state token))
                 ((operator? top) (process-operator state token))
@@ -156,16 +161,23 @@
             (cons '(#\0) dict)
             (with-exception-catcher
                 (lambda (e)
-                    (cons (string->list e) dict))
-                (lambda ()
+                    (cons (string->list e) dict)) ;; Procedure si on a une exception (catch)
+                (lambda () ;; Try:
                     (let ((result
                             (foldl
                                 (lambda (state token)
-                                    (process-token state token))
-                                (cons '() dict)
-                                (tokenize expr))))
+                                    (process-token state token)) ;; f
+                                (cons '() dict) ;; base
+                                (tokenize expr)))) ;; lst
                         (cons (car (car result)) (cdr result))))))))
-
+(trace traiter)
+(trace process-token)
+(trace process-ref)
+(trace process-set)
+(trace process-operator)
+(trace process-number)
+(trace foldl)
+(trace tokenize)
 ;;;----------------------------------------------------------------------------
 
 (define repl
