@@ -1,9 +1,16 @@
 IFT2035  TP2
 Rapport
 
+
+L'utilisateur écrit une expression mathématique qui est envoyée à la fonction traiter, avec un dictionnaire contenant les variables initialisées. Nous utilisons la fonction tokenize pour transformer l'expression en une liste des termes qui y sont présents, sans les espaces. Chacun des "tokens" est une liste qui contient les caractères du terme qu'il représente: par exemple, "123 2 +" devient ( (#\1 #\2 #\3) (#\2) (#\+)). On veut ensuite traiter cette expression en utilisant une pile, comme pour le TP1. On veut passer à travers la liste de tokens et les ajouter à la pile un à un, en traitant les opérations au bon moment. Pour passer à travers la liste, on utilisera foldl. En effet, on veut commencer par traiter les opérations écrites en premier. Foldl a besoin de trois paramètres: une fonction, un terme de base et la liste sur laquelle on applique notre fonction (ici la liste de tokens.) La fonction passée à foldl
+
 a) Analyse syntaxique et traitement d’une expression
-    On enlève les espaces de l'expression et on sépare chaque terme comme un item dans une liste. 
+    
+    On enlève les espaces de l'expression et on ajoute chaque terme comme un item dans une liste qu'on appelle Token. Ensuite,  
 b) Calcul de l’expression
+    
 c) Affectation aux variables
+    Variables stockées dans un dictionnaire. On cherche si le nom de la variable est déja utilisé et on 
 d) Affichage des résultats et des erreurs
+
 e) Traitement des erreurs
