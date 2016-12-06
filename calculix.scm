@@ -179,7 +179,10 @@
                             process-token
                             (cons '() dict)
                             (tokenize expr))))
-                        (new-pile result (caar result))))))))
+                        (if (<= (length (car result)) 1)
+                            (new-pile result (caar result))
+                            (raise "Stack not empty")
+                        )))))))
 
 ;;;----------------------------------------------------------------------------
 
