@@ -42,7 +42,7 @@
     (lambda (c) (case c
         ((#\+ #\- #\/ #\* #\^) #t)
         (else #f))))
-        
+
 (define varassignation? (lambda (c) (eq? c #\=)))
 
 (define varname? (lambda (c) (and (char>=? c #\a) (char<=? c #\z))))
@@ -178,14 +178,7 @@
                                 (cons '() dict) ;; base
                                 (tokenize expr)))) ;; lst
                         (cons (car (car result)) (cdr result))))))))
-(trace traiter)
-(trace process-token)
-(trace process-ref)
-(trace process-set)
-(trace process-operator)
-(trace process-number)
-(trace foldl)
-(trace tokenize)
+
 ;;;----------------------------------------------------------------------------
 
 (define repl
