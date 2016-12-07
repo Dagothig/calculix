@@ -1,0 +1,77 @@
+\documentclass[titlepage, 12pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[francais]{babel}
+\usepackage{amssymb}
+
+% Paragraph formatting
+\setlength{\parindent}{0pt}
+\usepackage{setspace}
+\onehalfspacing
+% Margin
+\usepackage[margin=1in]{geometry}
+
+% Redefine emph to also bold text
+\let\emph\relax
+\DeclareTextFontCommand{\emph}{\bfseries\em}
+
+% Some chars
+\newcommand\BS{\char`\\}
+\newcommand\HASH{\char`\#}
+\newcommand\SCMCAR{\BS\HASH}
+
+% Title formatting
+\usepackage{titlesec}
+\titleformat*{\section}{\large\bfseries}
+\renewcommand\thesection{\arabic{section}.}
+\titleformat*{\subsection}{\normalsize\bfseries}
+\renewcommand\thesubsection{(\alph{subsection})}
+
+% Doc info
+\title{IFT2035 A2016 \\ TP2 Rapport}
+\author{Alizée Gagnon \and Guillaume Noël-Martel}
+
+\begin{document}
+
+\maketitle
+
+\section{Fonctionnement général du programme}
+
+On a défini une liste de couples de fonctions des tests et des manières d'opérer. Lorsqu'on cherche dans cette liste de couples, on applique toujours la première fonction sur le token. Si le test réussit, la recherche se conclut et on applique la deuxième fonction du couple sur \emph{state} et \emph{token}. Cette fonction génère le nouvel état.\\
+L'utilisateur écrit une expression mathématique qui est envoyée à la fonction \emph{traiter}, avec un dictionnaire contenant les variables initialisées. Nous utilisons la fonction tokenize pour transformer l'expression en une liste des termes qui y sont présents, sans les espaces. Chacun des \emph{tokens} est une liste qui contient les caractères du terme qu'il représente: par exemple, \emph{­123 2 +} devient \emph{((\SCMCAR1 \SCMCAR2 \SCMCAR3) (\SCMCAR2) (\SCMCAR+))}. On veut ensuite traiter cette expression en utilisant une pile, comme pour le TP1. On veut passer à travers la liste de tokens et faire les bonnes opérations; ajouter les nombres, gérer les variables, etc. Pour passer à travers la liste, on utilisera \emph{foldl}. En effet, on va calculer l'expression comme les transformations successives des tokens sur la pile et le dictionnaire. On crée \emph{state}, une liste commençant avec la pile (vide au début de chaque analyse de ligne) suivie des éléments du dictionnaire. La fonction utilisée avec \emph{foldl}, \emph{process-token} fait une recherche avec continuation sur les différentes manières d'opérer sur un token pour trouver celle à utiliser.\\
+\\
+Les fonctions qui appliquent les opérations des tokens sont \emph{add-token-to-pile}, \emph{process-operator}, \emph{process-set} et \emph{process-ref}. Elles gèrent respectivement les nombres, les opérateurs (* + -), les assignations de variables et les références à des variables. Chaque opération recrée le nouvel état après l'application de celle-ci, ainsi:
+
+\begin{description}
+
+\item La fonction \emph{add-token-to-pile} ajoute le \emph{token}, identifié comme étant un nombre, à la pile.
+
+\item La fonction \emph{process-operator} détermine les deux éléments du haut de la pile, la pile sans ces deux éléments et ajoute le résultat de l'opérateur correspondant au \emph{token} sur le dessus de la pile sans les opérandes. La fonction pour opérer est déterminée en faisant une recherche sur la liste associative des \emph{tokens} correspondants aux fonctions.
+
+\item La fonction \emph{process-set} part du dictionnaire ne contenant que la nouvelle entrée (le \emph{token} associé au nombre sur le dessus de la pile) et opère un \emph{foldl} passant à travers l'ancien dictionnaire. On ajoute les entrées de celui-ci au nouveau; si une des entrées est correspondante au \emph{token}, alors on l'ignore (puisque l'entrée a été redéfinie).
+
+\item La fonction \emph{process-ref} est simplement l'ajout à la pile du résultat de la recherche à l'aide de \emph{find-cont} (une recherche avec continuation) du \emph{token} sur le dictionnaire.
+
+\end{description}
+
+\section{Résolution de problèmes de programmation}
+
+\subsection{Analyse syntaxique d'une expression et\\traitement d'une expression de longueur quelconque}
+
+\subsection{Calcul de l'expression}
+
+\subsection{Affectation aux variables}
+
+\subsection{Affichage des résultats et des erreurs}
+
+Comme le \emph{repl} s'attend à recevoir une liste contenant une chaîne de caractères suivit du dictionnaire, on a simplement à reconstruire une telle structure une fois que le traitement de l'expression est complétée. Donc pour afficher les résultats, on dépile simplement le premier nombre de la pile et on l'attache devant le nouveau dictionnaire avec \emph{cons}. De la même façon, pour afficher le message d'erreur, on attache devant l'ancien dictionnaire le message à afficher.
+
+\subsection{Traitement des erreurs}
+
+Le traitement des erreurs est simple. On applique le principe du try...catch en utilisant les outils du langage. Notre méthode la plus englobante, \emph{traiter}, utilise la fonction \emph{with-exception-catcher}, qui prend deux fonctions; la fonction de \emph{catch} et de \emph{try}. Elle surveille l'exécution du \emph{try} et si une exception est lancée elle roule la fonction de \emph{catch}. Dans ce cas ci, chaque exception qu'on lance au cours de l'exécution donne un message d'erreur d'écrivant le problème. Dans le \emph{catch}, on ajoute ce message devant le dictionnaire pour qu'il soit imprimé à la place de la pile.\\
+Nos définition de fonctions avec continuation qui peuvent échouer définissent deux continuations différentes; en cas de succès et en cas d'échecs. Dans le cas de \emph{find-cont} on définit l'échec comme une recherche infructueuse. Ces fonctions d'échec lancent le message d'erreur approprié au contexte avec \emph{raise}. Similairement, dans le cas de dépiler, par exemple quand vient temps d'effectuer une opération mathématique sur deux nombres ou d'attribuer une valeur à une variable, l'échec est définit comme une manque d'arguments.\\
+On lance aussi une exception dans Traiter au moment de renvoyer la pile et le dictionnaire. On vérifie si la pile contient plus qu'un élément. Dans ce cas, on a une erreur de syntaxe car on a donné trop d'arguments à l'expression.
+
+\section{Comparaison de notre expérience au TP1}
+
+\end{document}

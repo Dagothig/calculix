@@ -180,7 +180,7 @@
                             (cons '() dict)
                             (tokenize expr))))
                         (if (<= (length (car result)) 1)
-                            (new-pile result (caar result))
+                            (cons (caar result) (cdr result))
                             (raise "Stack not empty")
                         )))))))
 
