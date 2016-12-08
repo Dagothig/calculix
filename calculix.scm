@@ -1,5 +1,12 @@
 #! /usr/bin/env gsi -:dR
 
+(define-macro errorf
+    (lambda parts
+        (let ((str-parts
+            (cons 'string-append (map
+                (lambda (part) (if (string? part) part `(list->string ,part)))
+                parts))))
+        `(lambda _ (raise ,str-parts)))))
 
 (define foldl
     (lambda (f base lst)
@@ -61,18 +68,21 @@
     (non-0-digit? (car n))
     (every digit? (cdr n)))))
 
+
+(define operators (list
+    (list #\+ +)
+    (list #\- -)
+    (list #\- *)))
+
 (define operator?
     (lambda (n) (and
         (null? (cdr n))
-        (case (car n) ((#\+ #\- #\/ #\* #\^) #t) (else #f)))))
+        (case (car n) ((#\+ #\- #\/ #\*) #t) (else #f)))))
 
 (define operator
-    (lambda (n) (case (car n)
-        ((#\+) +) ((#\-) -) ((#\*) *)
-        (else (raise (string-append
-            "Operation \""
-            (list->string token)
-            "\" not supported"))))))
+    (lambda (token) (case (car token)
+        ((#\+) +) ((#\-) -) ((#\*) *) ((#\/) /)
+        (else (errorf "Operation \"" token "\" not supported")))))
 
 (define varassignation? (lambda (n) (and
     (eq? (car n) #\=)
@@ -107,11 +117,7 @@
                     (number->list (apply
                         (operator token)
                         (reverse (map list->number args))))))
-            (lambda () (raise
-                (string-append
-                    "Not enough arguments for \""
-                    (list->string token)
-                    "\" (need 2)"))))))
+            (errorf "Not enough arguments for \"" token "\" (need 2)"))))
 
 (define process-set
     (lambda (state token)
@@ -125,8 +131,7 @@
                                 (cons pair newdict)))
                         (list (list (cdr token) (car args)))
                         (cdr state))))
-            (lambda ()
-                (raise "Not enough arguments for assignation (need 1)")))))
+            (errorf "Not enough arguments for assignation (need 1)"))))
 
 (define process-ref
     (lambda (state token)
@@ -135,10 +140,7 @@
                 (lambda (pair) (lst-eq? (car pair) token))
                 (cdr state)
                 cadr
-                (lambda () (raise (string-append
-                    "Variable \""
-                    (list->string token)
-                    "\" not bound")))))))
+                (errorf "Variable \"" token "\" not bound")))))
 
 (define processors (list
     (list number? add-to-pile)
@@ -151,11 +153,7 @@
         (lambda (processor) ((car processor) token))
         processors
         (lambda (processor) ((cadr processor) state token))
-        (lambda () (raise
-            (string-append
-                "Syntax error \""
-                (list->string token)
-                "\""))))))
+        (errorf "Syntax error \"" token "\""))))
 
 (define traiter
     (lambda (expr dict)
