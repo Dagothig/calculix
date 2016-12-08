@@ -1,5 +1,6 @@
 #! /usr/bin/env gsi -:dR
 
+
 (define foldl
     (lambda (f base lst)
         (if (null? lst)
@@ -17,24 +18,14 @@
                 #f)))))
 
 (define find
-    (lambda (f default lst)
-        (if (null? lst)
-            default
-            (if (f (car lst))
-                (car lst)
-                (find f default (cdr lst))))))
-
-(define every
-    (lambda (f lst)
-        (not (find (lambda (e) (not (f e))) #f lst))))
-
-(define find-cont
     (lambda (f lst cont fail)
         (if (null? lst)
-            (fail)
+            (if (procedure? fail) (fail) fail)
             (if (f (car lst))
-                (cont (car lst))
-                (find-cont f (cdr lst) cont fail)))))
+                (if (procedure? cont) (cont (car lst)) cont)
+                (find f (cdr lst) cont fail)))))
+
+(define every (lambda (f lst) (find (lambda (x) (not (f x))) lst #f #t)))
 
 (define split-at
     (lambda (f lst cont)
@@ -96,18 +87,16 @@
         ; Tokenize operates on the expression in a reversed order; it also prepends as it creates the tokens since its a simpler operation.
         ; Thus, once the expression has been tokenized, it is reversed and its' contents are reversed
         ; The tokenization is done by prepending every character to the ongoing token and to begin a new token every time whitespace is found
-        (let*((reversed
-                (foldl
-                    (lambda (tokens c)
-                        (if (char-whitespace? c)
-                            (if (null? (car tokens))
-                                tokens
-                                (cons '() tokens))
-                            (cons (cons c (car tokens)) (cdr tokens))))
-                    (list '())
-                    expr))
-                (cleaned (if (null? (car reversed)) (cdr reversed) reversed)))
-            (map reverse (reverse cleaned)))))
+        (define f
+            (lambda (expr tokens token)
+                (if (null? expr)
+                    (if (null? token) tokens (cons token tokens))
+                    (if (char-whitespace? (car expr))
+                        (if (null? token)
+                            (f (cdr expr) tokens token)
+                            (f (cdr expr) (cons token tokens) '()))
+                        (f (cdr expr) tokens (cons (car expr) token))))))
+        (map reverse (reverse (f expr '() '())))))
 
 (define process-operator
     (lambda (state token)
@@ -116,8 +105,8 @@
                 (add-to-pile
                     (new-pile state depiled)
                     (number->list (apply
-                            (operator token)
-                            (reverse (map list->number args))))))
+                        (operator token)
+                        (reverse (map list->number args))))))
             (lambda () (raise
                 (string-append
                     "Not enough arguments for \""
@@ -136,16 +125,16 @@
                                 (cons pair newdict)))
                         (list (list (cdr token) (car args)))
                         (cdr state))))
-            (lambda () (raise "Not enough arguments for assignation (need 1)"))
-        )))
+            (lambda ()
+                (raise "Not enough arguments for assignation (need 1)")))))
 
 (define process-ref
     (lambda (state token)
         (add-to-pile state
-            (find-cont
+            (find
                 (lambda (pair) (lst-eq? (car pair) token))
                 (cdr state)
-                (lambda (pair) (cadr pair))
+                cadr
                 (lambda () (raise (string-append
                     "Variable \""
                     (list->string token)
@@ -158,13 +147,13 @@
     (list varname? process-ref)))
 
 (define process-token
-    (lambda (state token) (find-cont
+    (lambda (state token) (find
         (lambda (processor) ((car processor) token))
         processors
         (lambda (processor) ((cadr processor) state token))
         (lambda () (raise
             (string-append
-                "Unknown token \""
+                "Syntax error \""
                 (list->string token)
                 "\""))))))
 
@@ -181,8 +170,7 @@
                             (tokenize expr))))
                         (if (<= (length (car result)) 1)
                             (cons (caar result) (cdr result))
-                            (raise "Stack not empty")
-                        )))))))
+                            (raise "Stack not empty"))))))))
 
 ;;;----------------------------------------------------------------------------
 
