@@ -34,12 +34,22 @@
 \begin{document}
 
 \maketitle
-
+Pour le deuxième travail pratique du cours de Concepts en langages de programmation, il était demandé de produire une calculatrice postfixe à précision infinie en Scheme. Nous devions construire notre programme par dessus une ébauche de code qui gérait les entrées et sorties. Nous nous en sommes sortis en utilisant le principe d'une calculatrice à pile et en tirant partie des particularités de Scheme. 
 \section{Fonctionnement général du programme}
 
+L'utilisateur écrit une expression mathématique qui est envoyée à la fonction \emph{traiter} par la fonction \emph{repl}, avec un dictionnaire contenant les variables initialisées. \\
+Dans la fonction traiter, on  veut trouver le résultat de l'expression. Ceci est possible en effectuant le calcul représenté par l'expression sur une pile. Après avoir transformé l'expression en une liste d'opérations appelées \emph{tokens}, on veut appliquer chaque token sur la pile, ce qui est simplifié en utilisant la fonction \emph{foldl} sur la liste de tokens. La base envoyée au \emph{foldl} est une variable appelée \emph{state}, qui contient à la fois la pile et le dictionnaire. Ces deux structures sont en effet celles modifiées au fur et à mesure du traitement de l'expression. Le dernier argument de \emph{foldl} est une fonction générale, \emph{process-token} qui gère l'action d'un token sur \emph{state}.  \\ Une fois le \emph{foldl} terminé, on renvoie le nombre restant sur la pile et le dictionnaire à \emph{repl}, qui affiche le résultat et se tient prêt à recevoir une nouvelle ligne.\\
+Finalement, on a réussit à écrire notre calculatrice en Scheme de façon concise et modulaire, en faisant usage principalement d'appels à \emph{foldl} et de recherches avec continuations. 
 
-L'utilisateur écrit une expression mathématique qui est envoyée à la fonction \emph{traiter}, avec un dictionnaire contenant les variables initialisées. Nous utilisons la fonction tokenize pour transformer l'expression en une liste des termes qui y sont présents, sans les espaces. Chacun des \emph{tokens} est une liste qui contient les caractères du terme qu'il représente: par exemple, \emph{­123 2 +} devient \emph{((\SCMCAR1 \SCMCAR2 \SCMCAR3) (\SCMCAR2) (\SCMCAR+))}. On veut ensuite traiter cette expression en utilisant une pile, comme pour le TP1. On veut passer à travers la liste de tokens et faire les bonnes opérations; ajouter les nombres, gérer les variables, etc. Pour passer à travers la liste, on utilisera \emph{foldl}. En effet, on va calculer l'expression comme les transformations successives des tokens sur la pile et le dictionnaire. On crée \emph{state}, une liste commençant avec la pile (vide au début de chaque analyse de ligne) suivie des éléments du dictionnaire. La fonction utilisée avec \emph{foldl}, \emph{process-token} fait une recherche avec continuation sur les différentes manières d'opérer sur un token pour trouver celle à utiliser.\\
-On a défini une liste de couples de fonctions des tests et des manières d'opérer. Lorsqu'on cherche dans cette liste de couples, on applique toujours la première fonction sur le token. Si le test réussit, la recherche se conclut et on applique la deuxième fonction du couple sur \emph{state} et \emph{token}. Cette fonction génère le nouvel état.\\
+
+
+
+\section{Résolution de problèmes de programmation}
+
+\subsection{Analyse syntaxique d'une expression et\\traitement d'une expression de longueur quelconque}
+	L'analyse syntaxique d'une expression postfixe est simple si on utilise une pile, comme c'est le cas ici. En effet, dans la notation postfixe, les opérateurs viennent toujours après leurs opérandes dans l'ordre de lecture de gauche à droite. Si on ajoute les nombres de l'expression à la pile en passant de gauche à droite, quand on tombe sur un opérateur, par exemple \emph{+}, on sait que les nombres à additionner sont les derniers à avoir été lus, et donc les nombres du dessus de la pile. Donc l'analyse consiste à retirer des nombres de la pile et à surveiller qu'on peut toujours en retirer le bon nombre. Si on analyse toute la ligne et qu'il ne reste qu'un nombre dans la pile au final, on saura que la syntaxe de la ligne aura été correcte, puisque à tout moment on aura trouvé le bon nombre d'opérandes pour nos opérateurs, et que de surcroit il n'y avait pas de chiffres superflus. \\ Pour effectuer ce processus, on utilise la fonction \emph{tokenize} pour transformer l'expression en une liste des termes qui y sont présents, sans les espaces. Chacun des \emph{tokens} est une liste qui contient les caractères du terme qu'il représente: par exemple, \emph{­123 2 +} devient \emph{((\SCMCAR1 \SCMCAR2 \SCMCAR3) (\SCMCAR2) (\SCMCAR+))}. La liste des tokens sera ensuite vidée token par token vers la pile. Cette pile est en fait une liste qu'on utilise comme une pile, en ne traitant que les valeurs sont au début de la liste. Ceci est aisé en Scheme car on peut considérer les listes comme des listes chaînées. Celles-ci facilitent aussi le traitement d'une expression de longueur quelconque, car la taille d'une liste chaînée est arbitraire. Pour vérifier que la pile contient assez d'opérandes, on utilisera \emph{length}. Pour retirer des éléments de la liste, on utilise la fonction \emph{split-at} qui sépare une liste en deux en retirant un certain nombre de données. 
+\subsection{Calcul de l'expression}
+	Pour calculer une expression, on applique les opérateurs trouvés sur le opérandes tirés de la pile dans la fonction \emph{process-token}. Pour savoir quelle fonction utiliser selon le token trouvé, on a défini une liste, appelée \emph{processors}, de couples de fonctions des tests et de manières d'opérer. Lorsqu'on cherche dans cette liste de couples, on applique toujours la première fonction sur le token. Si le test réussit, la recherche se conclut et on applique la deuxième fonction du couple sur \emph{state} et \emph{token}. Cette fonction génère le nouvel état.\\
 \\
 Les fonctions qui appliquent les opérations des tokens sont \emph{add-token-to-pile}, \emph{process-operator}, \emph{process-set} et \emph{process-ref}. Elles gèrent respectivement les nombres, les opérateurs (* + -), les assignations de variables et les références à des variables. Chaque opération recrée le nouvel état après l'application de celle-ci, ainsi:
 
@@ -47,25 +57,22 @@ Les fonctions qui appliquent les opérations des tokens sont \emph{add-token-to-
 
 \item La fonction \emph{add-token-to-pile} ajoute le \emph{token}, identifié comme étant un nombre, à la pile.
 
-\item La fonction \emph{process-operator} détermine les deux éléments du haut de la pile, la pile sans ces deux éléments et ajoute le résultat de l'opérateur correspondant au \emph{token} sur le dessus de la pile sans les opérandes. La fonction pour opérer est déterminée en faisant une recherche sur la liste associative des \emph{tokens} correspondants aux fonctions.
+\item La fonction \emph{process-operator} détermine les deux éléments du haut de la pile, la pile sans ces deux éléments et ajoute le résultat de l'opérateur correspondant au \emph{token} sur le dessus de la pile sans les opérandes. La fonction pour opérer est déterminée en faisant une recherche sur la liste associative des \emph{tokens} correspondants aux fonctions. On utilise les fonctions built-in d'addition, de soustraction et de multiplications, car elles gèrent déja les nombres de longueur arbitraire. 
 
-\item La fonction \emph{process-set} part du dictionnaire ne contenant que la nouvelle entrée (le \emph{token} associé au nombre sur le dessus de la pile) et opère un \emph{foldl} passant à travers l'ancien dictionnaire. On ajoute les entrées de celui-ci au nouveau; si une des entrées est correspondante au \emph{token}, alors on l'ignore (puisque l'entrée a été redéfinie).
+\item La fonction \emph{process-set} ajoute le nom d'une variable et sa valeur au dictionnaire. 
 
-\item La fonction \emph{process-ref} est simplement l'ajout à la pile du résultat de la recherche à l'aide de \emph{find-cont} (une recherche avec continuation) du \emph{token} sur le dictionnaire.
+\item La fonction \emph{process-ref} ajoute la valeur de la variable demandée à la pile.
+
+
 
 \end{description}
-
-\section{Résolution de problèmes de programmation}
-
-\subsection{Analyse syntaxique d'une expression et\\traitement d'une expression de longueur quelconque}
-
-\subsection{Calcul de l'expression}
-
 \subsection{Affectation aux variables}
+Pour l'affectation aux variables, comme pour le calcul, on détecte qu'une affectation est nécessaire grâce à la liste \emph{processors}. C'est donc \emph{process-set} qui effectue les étapes suivantes. La valeur de la nouvelle variable est toujours le nombre situé au haut de la pile, on commence donc par obtenir la valeur de la variable du dessus de la pile. \\ Les valeurs affectées aux variables sont contenues dans le dictionnaire de \emph{state}. Il faut faire attention de ne pas laisser dans le dictionnaire l'entrée correspondant à la vieille valeur de la variable à affecter. On a décidé de construire un nouveau dictionnaire qui ne contient pas de doublons. On part d'un nouveau dictionnaire ne contenant que la nouvelle entrée (le \emph{token} associé au nombre sur le dessus de la pile) et on opère un \emph{foldl} passant à travers l'ancien dictionnaire. On ajoute les entrées de celui-ci au nouveau seulement si leur clé est différente de notre token.\\
+Pour accéder à la valeur d'une variable, on effectue une recherche avec continuation de la valeur associée à notre token dans le dictionnaire et on ajoute cette valeur à la pile. Ce processus est contenu dans \emph{process-ref}.
 
 \subsection{Affichage des résultats et des erreurs}
 
-Comme le \emph{repl} s'attend à recevoir une liste contenant une chaîne de caractères suivit du dictionnaire, on a simplement à reconstruire une telle structure une fois que le traitement de l'expression est complétée. Donc pour afficher les résultats, on dépile simplement le premier nombre de la pile et on l'attache devant le nouveau dictionnaire avec \emph{cons}. De la même façon, pour afficher le message d'erreur, on attache devant l'ancien dictionnaire le message à afficher.
+Comme le \emph{repl} s'attend à recevoir une liste contenant une chaîne de caractères suivie du dictionnaire, on a simplement à reconstruire une telle structure une fois que le traitement de l'expression est complétée. Donc pour afficher les résultats, on dépile simplement le premier nombre de la pile et on l'attache devant le nouveau dictionnaire avec \emph{cons}. De la même façon, pour afficher le message d'erreur, on attache devant l'ancien dictionnaire le message à afficher.
 
 \subsection{Traitement des erreurs}
 
